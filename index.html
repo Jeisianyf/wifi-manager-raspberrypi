@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração WiFi</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="wifi-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                </svg>
+            </div>
+            <h1>Configuração WiFi</h1>
+            <p class="subtitle">Selecione a rede WiFi com internet para enviar os dados coletados</p>
+        </div>
+
+        <!-- Status da conexão -->
+        <div class="status-card" id="statusCard">
+            <div class="status-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                </svg>
+            </div>
+            <div>
+                <div class="status-title">Conectado</div>
+                <div class="status-text">Rede ativa: <span id="connectedNetworkName"></span></div>
+            </div>
+        </div>
+
+        <!-- Controles -->
+        <div class="controls">
+            <h2 class="section-title">Redes Disponíveis</h2>
+            <button class="btn btn-outline" id="scanBtn">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                <span id="scanText">Atualizar</span>
+            </button>
+        </div>
+
+        <!-- Lista de redes -->
+        <div class="networks-list" id="networksList">
+            <!-- Networks will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal de senha -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-body">
+                <div class="network-preview" id="networkPreview">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                    </svg>
+                    <div>
+                        <div id="modalNetworkName" style="font-weight: 500; font-size: 0.875rem;"></div>
+                        <div id="modalNetworkType" style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-secondary);"></div>
+                    </div>
+                </div>
+                
+                <form id="passwordForm" style="display: none;">
+                    <div class="form-group">
+                        <label for="passwordInput" class="form-label">Senha da rede</label>
+                        <div class="input-container">
+                            <input type="password" id="passwordInput" class="form-input" placeholder="Digite a senha da rede WiFi">
+                            <button type="button" class="toggle-password" id="togglePassword">
+                                <svg id="eyeIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                <svg id="eyeOffIcon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelBtn">Cancelar</button>
+                <button class="btn btn-primary" id="connectBtn">
+                    <span id="connectBtnText">Conectar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
