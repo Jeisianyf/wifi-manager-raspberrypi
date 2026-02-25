@@ -92,26 +92,36 @@ Adicione a seguinte linha (substitua `seu_usuario` pelo usuário que executará 
 seu_usuario ALL=(ALL) NOPASSWD: /sbin/ip, /usr/sbin/iwlist, /usr/sbin/iwgetid, /sbin/wpa_cli, /usr/bin/systemctl, /bin/ping, /sbin/dhclient, /usr/bin/killall, /usr/bin/sed
 ```
 
-### 3. Configure o IP do Raspberry Pi (Opcional)
+### 3. Entenda a configuração de rede
 
-Se você deseja acessar o WiFi Manager de outro dispositivo na mesma rede, configure um IP estático ou ajuste o IP no código.
+A aplicação está configurada para funcionar com o **modo Access Point (AP)** do Raspberry Pi:
 
 No arquivo [wifi_control.py](wifi_control.py#L207):
 ```python
 app.run(host='192.168.2.1', port=5000)
 ```
 
-E no arquivo [script.js](script.js#L5):
+No arquivo [script.js](script.js#L5):
 ```javascript
 const BACKEND_URL = "http://192.168.2.1:5000";
 ```
 
-**Dica**: Para acessar localmente apenas no Raspberry Pi, use:
-```python
-app.run(host='0.0.0.0', port=5000)
-```
-E ajuste o `BACKEND_URL` para o IP do seu Raspberry Pi na rede.
+**Como acessar o WiFi Manager:**
 
+1. **Se o Raspberry Pi NÃO estiver conectado a nenhuma rede WiFi:**
+   - O Raspberry Pi criará automaticamente uma rede AP (Access Point)
+   - Conecte-se à rede WiFi do Raspberry Pi pelo seu celular/notebook
+   - Acesse no navegador: `http://192.168.2.1/wifi`
+
+2. **Se o Raspberry Pi JÁ estiver conectado a uma rede WiFi:**
+   - Conecte seu dispositivo à mesma rede WiFi que o Raspberry Pi
+   - Descubra o IP do Raspberry Pi na rede (ex: `192.168.1.50`)
+   - Acesse no navegador: `http://[IP_DO_RASPBERRY]/wifi` (ex: `http://192.168.1.50/wifi`)
+
+Para descobrir o IP do Raspberry Pi na rede, use:
+```bash
+hostname -I
+```
 ### 4. Torne o script executável
 
 ```bash
@@ -169,65 +179,30 @@ sudo systemctl start wifi-manager.service
 sudo systemctl status wifi-manager.service
 ```
 
-### Servindo os Arquivos HTML
+## Servindo os Arquivos HTML -- Apache HTTP Server
 
-Você pode servir os arquivos HTML de várias formas:
-
-#### Opção 1: Servidor HTTP Python (Simples)
+1. Instale o Apache:
 ```bash
-cd ~/wifi-manager
-python3 -m http.server 8080
+sudo apt-get install -y apache2
 ```
 
-Acesse: `http://192.168.2.1:8080`
-
-#### Opção 2: Nginx (Recomendado para produção)
-
-1. Instale o Nginx:
+2. Copie os arquivos para o diretório web do Apache:
 ```bash
-sudo apt-get install -y nginx
+sudo cp ~/wifi-manager/*.html ~/wifi-manager/*.css ~/wifi-manager/*.js /var/www/html/wifi
 ```
 
-2. Configure o Nginx:
+3. Reinicie o Apache:
 ```bash
-sudo nano /etc/nginx/sites-available/wifi-manager
+sudo systemctl restart apache2
 ```
 
-Adicione:
-```nginx
-server {
-    listen 80;
-    server_name _;
-    
-    root /home/seu_usuario/wifi-manager;
-    index index.html;
-    
-    location / {
-        try_files $uri $uri/ =404;
-    }
-    
-    location /api/ {
-        proxy_pass http://192.168.2.1:5000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-3. Ative a configuração:
-```bash
-sudo ln -s /etc/nginx/sites-available/wifi-manager /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
-Acesse: `http://192.168.2.1`
+Acesse: `http://192.168.2.1/wifi`
 
 ### Acessando a Interface
 
-1. **Conecte-se à rede** do Raspberry Pi ou garanta que esteja na mesma rede
-2. **Abra um navegador** (Chrome, Firefox, Safari, etc.)
-3. **Acesse o endereço**: `http://192.168.2.1:8080` (ou o IP configurado)
+1. **Conecte-se à rede** do Raspberry Pi;
+2. **Abra um navegador;**
+3. **Acesse o endereço**: `http://192.168.2.1/wifi` (ou o IP configurado)
 
 ### Usando a Interface
 
@@ -256,10 +231,10 @@ Acesse: `http://192.168.2.1`
 
 ⚠️ **Atenção**: Esta aplicação é projetada para uso em redes locais/privadas. Considerações importantes:
 
-- As senhas WiFi são armazenadas em texto simples em `/etc/wpa_supplicant/wpa_supplicant.conf`
-- A API não possui autenticação (qualquer pessoa na rede pode acessar)
-- Recomenda-se usar apenas em redes confiáveis
-- Para produção, adicione autenticação (JWT, Basic Auth, etc.)
+- As senhas WiFi são armazenadas em texto simples em `/etc/wpa_supplicant/wpa_supplicant.conf`;
+- A API não possui autenticação (qualquer pessoa na rede pode acessar);
+- Recomenda-se usar apenas em redes confiáveis;
+- Para produção, adicione autenticação.
 
 ### Arquivos do Sistema Modificados
 
@@ -320,13 +295,6 @@ CORS(app)
 
 ## 📱 Compatibilidade
 
-### Navegadores Testados
-- ✅ Chrome/Chromium 90+
-- ✅ Firefox 88+
-- ✅ Safari 14+
-- ✅ Edge 90+
-- ✅ Navegadores mobile (iOS Safari, Chrome Mobile)
-
 ### Sistemas Testados
 - ✅ DietPi
 - ✅ Raspbian/Raspberry Pi OS
@@ -336,31 +304,11 @@ CORS(app)
 
 Possíveis melhorias:
 - [ ] Autenticação de usuário
-- [ ] Suporte a redes WPA3
 - [ ] Histórico de redes conectadas
 - [ ] Modo AP (Access Point) integrado
-- [ ] Backup/restore de configurações
 - [ ] Interface multi-idioma
 - [ ] Testes automatizados
 
-## 📄 Licença
+## ©️ Licença
 
 Este projeto é open source. Use e modifique conforme necessário.
-
-## 🤝 Contribuindo
-
-Contribuições são bem-vindas! Sinta-se à vontade para:
-- Reportar bugs
-- Sugerir melhorias
-- Enviar pull requests
-
-## 📞 Suporte
-
-Para questões e suporte, consulte:
-- Documentação do DietPi: https://dietpi.com/docs/
-- Documentação do wpa_supplicant: https://w1.fi/wpa_supplicant/
-- Fórum Raspberry Pi: https://forums.raspberrypi.com/
-
----
-
-**Desenvolvido para projetos de Telemetria com Raspberry Pi** 🚀
