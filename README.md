@@ -2,7 +2,7 @@
 
 ## 📋 Descrição
 
-Este é um **gerenciador de WiFi web** desenvolvido para Raspberry Pi rodando DietPi. A aplicação fornece uma interface web moderna e intuitiva para gerenciar conexões WiFi do dispositivo, permitindo escanear redes disponíveis, conectar e desconectar de redes WiFi de forma simples e visual.
+Este é um **gerenciador de WiFi web** desenvolvido para Raspberry Pi. A aplicação fornece uma interface web para gerenciar conexões WiFi do dispositivo, permitindo escanear redes disponíveis, conectar e desconectar de redes WiFi de forma simples e visual.
 
 A solução é ideal para projetos IoT onde o Raspberry Pi precisa se conectar a diferentes redes WiFi sem acesso direto ao terminal ou interface física.
 
@@ -44,21 +44,13 @@ A aplicação é composta por duas partes principais:
 | `/connection_status` | GET | Verifica o status detalhado da conexão |
 
 ## 📦 Pré-requisitos
-
-### Sistema Operacional
 - **Raspberry Pi** (qualquer modelo com WiFi integrado ou dongle USB)
 - **DietPi** (ou outra distribuição Linux baseada em Debian/Raspbian)
 
 ### Pacotes do Sistema
 ```bash
 sudo apt-get update
-sudo apt-get install -y \
-    python3 \
-    python3-pip \
-    wireless-tools \
-    wpasupplicant \
-    dhcpcd5 \
-    isc-dhcp-client
+sudo apt-get install -y python3 python3-pip wireless-tools wpasupplicant dhcpcd5 isc-dhcp-client
 ```
 
 ### Bibliotecas Python
@@ -92,9 +84,146 @@ Adicione a seguinte linha (substitua `seu_usuario` pelo usuário que executará 
 seu_usuario ALL=(ALL) NOPASSWD: /sbin/ip, /usr/sbin/iwlist, /usr/sbin/iwgetid, /sbin/wpa_cli, /usr/bin/systemctl, /bin/ping, /sbin/dhclient, /usr/bin/killall, /usr/bin/sed
 ```
 
-### 3. Entenda a configuração de rede
+### 3. Configure a Interface Virtual (Recomendado)
 
-A aplicação está configurada para funcionar com o **modo Access Point (AP)** do Raspberry Pi:
+Para permitir que o Raspberry Pi opere simultaneamente como **AP e Cliente**, ou facilite a transição entre modos, é recomendado criar uma interface virtual.
+
+#### Por que usar interface virtual?
+
+- Permite operação simultânea como AP (hotspot) e Cliente WiFi
+- Facilita a transição suave entre modos sem perder conectividade
+- Testado com sucesso no **Raspberry Pi Zero 2W**
+
+#### Criando a Interface Virtual (uap0)
+
+```bash
+# Criar interface virtual uap0 para o Access Point
+sudo iw dev wlan0 interface add uap0 type __ap
+
+# Ativar a interface
+sudo ip link set uap0 up
+
+# Configurar IP estático para o AP
+sudo ip addr add 192.168.2.1/24 dev uap0
+```
+
+Para tornar permanente, crie um script de inicialização:
+
+```bash
+sudo nano /usr/local/bin/setup-virtual-wifi.sh
+```
+
+Adicione o conteúdo:
+
+```bash
+# Verificar se uap0 já existe
+if ! ip link show uap0 &> /dev/null; then
+    echo "Criando interface virtual uap0..."
+    iw dev wlan0 interface add uap0 type __ap
+    ip link set uap0 up
+    ip addr add 192.168.2.1/24 dev uap0
+    echo "Interface uap0 criada e ativada com IP 192.168.2.1"
+else
+    echo "Interface uap0 já existe."
+fi
+```
+
+Torne executável e configure para iniciar no boot:
+
+```bash
+sudo chmod +x /usr/local/bin/setup-virtual-wifi.sh
+
+# Criar serviço systemd
+sudo nano /etc/systemd/system/virtual-wifi.service
+```
+
+Conteúdo do serviço:
+
+```ini
+[Unit]
+Description=Setup Virtual WiFi Interface (uap0)
+After=network-pre.target
+Before=network.target hostapd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-virtual-wifi.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Ative o serviço:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable virtual-wifi.service
+sudo systemctl start virtual-wifi.service
+```
+
+#### Configuração do hostapd para uap0
+
+Edite o arquivo de configuração do hostapd para usar a interface `uap0`:
+
+```bash
+sudo nano /etc/hostapd/hostapd.conf
+```
+
+Certifique-se de que contém:
+
+```ini
+interface=uap0
+driver=nl80211
+ssid=WiFi-Maneger-RPi
+hw_mode=g
+channel=7
+wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_passphrase=suasenha123
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=TKIP
+rsn_pairwise=CCMP
+```
+
+#### Configuração com Interfaces Virtuais
+
+Após criar a interface virtual, a configuração ficará:
+
+**Para wlan0** (Cliente WiFi):
+- Gerenciada pelo `wpa_supplicant`
+- Recebe IP via DHCP do roteador
+- Usada para conectar em redes externas via WiFi Manager
+
+**Para uap0** (Access Point):
+- Gerenciada pelo `hostapd` e `dnsmasq`
+- IP fixo: `192.168.2.1`
+- Usada para fornecer o hotspot de configuração inicial
+
+#### Verificando as Interfaces
+
+```bash
+# Listar todas as interfaces
+ip link show
+
+# Verificar interfaces WiFi
+iw dev
+
+# Status das interfaces
+ip addr show wlan0
+ip addr show uap0
+```
+
+### 4. Entenda a configuração de rede
+
+Este projeto assume que o Raspberry Pi possui um **Access Point (AP/hotspot)** para o primeiro acesso.
+
+⚠️ Importante: **o WiFi Manager não “sobe” o AP por conta própria**. O AP precisa estar configurado no sistema (ex.: via DietPi, `hostapd`/`dnsmasq` e/ou algum serviço/script de fallback) (Realizado no passo anterior).
+
+O backend Flask deste projeto está configurado para escutar no IP do AP:
 
 No arquivo [wifi_control.py](wifi_control.py#L207):
 ```python
@@ -106,22 +235,28 @@ No arquivo [script.js](script.js#L5):
 const BACKEND_URL = "http://192.168.2.1:5000";
 ```
 
-**Como acessar o WiFi Manager:**
+**Fluxo esperado de uso (AP → conectar no WiFi → acessar pela rede):**
 
-1. **Se o Raspberry Pi NÃO estiver conectado a nenhuma rede WiFi:**
-   - O Raspberry Pi criará automaticamente uma rede AP (Access Point)
-   - Conecte-se à rede WiFi do Raspberry Pi pelo seu celular/notebook
-   - Acesse no navegador: `http://192.168.2.1/wifi`
+1. **Estado inicial (sem WiFi configurado ou sem alcance da rede):**
+   - O Raspberry Pi fica em modo **AP** (hotspot) com IP `192.168.2.1`
+   - Conecte-se ao WiFi do AP com seu celular/notebook
+   - Acesse a página do WiFi Manager em: `http://192.168.2.1/wifi`
 
-2. **Se o Raspberry Pi JÁ estiver conectado a uma rede WiFi:**
-   - Conecte seu dispositivo à mesma rede WiFi que o Raspberry Pi
-   - Descubra o IP do Raspberry Pi na rede (ex: `192.168.1.50`)
-   - Acesse no navegador: `http://[IP_DO_RASPBERRY]/wifi` (ex: `http://192.168.1.50/wifi`)
+2. **Após conectar o Raspberry Pi em uma rede WiFi pelo WiFi Manager:**
+   - O Raspberry Pi passa a operar como **cliente** da rede WiFi escolhida
+   - Ele receberá um IP do roteador (DHCP), por exemplo `192.168.1.50`
+   - Conecte seu celular/notebook à **mesma rede WiFi**
+   - Acesse a página em: `http://[IP_DO_RASPBERRY]/wifi` (ex.: `http://192.168.1.50/wifi`)
+
+3. **Se o Raspberry Pi desconectar da rede (ou ficar fora de alcance):**
+   - O sistema deve **voltar para o modo AP** (fallback)
+   - Acesse novamente via: `http://192.168.2.1/wifi`
 
 Para descobrir o IP do Raspberry Pi na rede, use:
 ```bash
 hostname -I
 ```
+
 ### 4. Torne o script executável
 
 ```bash
